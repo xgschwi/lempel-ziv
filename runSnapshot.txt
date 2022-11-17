@@ -1,0 +1,171 @@
+PS C:\Users\Xavie\lempel-ziv> ls         
+
+
+    Directory: C:\Users\Xavie\lempel-ziv
+
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a----        11/17/2022   3:20 PM             25 Decompressed-f1.txt
+-a----        11/17/2022   3:20 PM            332 Decompressed-f2.txt
+-a----        11/17/2022   3:20 PM            517 Decompressed-f3.txt
+-a----        11/16/2022   5:28 PM             25 f1.txt
+-a----        11/17/2022   3:20 PM             35 f1.txt.lwz
+-a----        11/16/2022  11:29 PM            332 f2.txt
+-a----        11/17/2022   3:20 PM            225 f2.txt.lwz
+-a----        11/17/2022   3:18 PM            517 f3.txt
+-a----        11/17/2022   3:20 PM            509 f3.txt.lwz
+-a----        11/17/2022   3:20 PM            819 f4.txt
+-a----        11/17/2022   3:20 PM            776 f4.txt.lwz
+-a----        11/17/2022   3:14 PM           2760 main.py
+-a----        11/16/2022   3:49 PM             12 README.md
+
+
+PS C:\Users\Xavie\lempel-ziv> cat main.py
+from sys import argv
+import os
+import string
+from texttable import Texttable
+t = Texttable()
+
+byteSize = 0
+inFile = None
+contents = ""
+
+output = None
+compFile = None
+compContents = ""
+decomFile = None
+
+# Dictionary based on Ascii between A to z
+def initCodeTable():
+    idx = 0
+    codeTable = {}
+
+    # Accepts only Ascii letters in dictionary
+    for c in list(string.ascii_letters):
+        codeTable[str(idx)] = c
+        idx += 1
+
+    return idx, codeTable
+
+
+def compress():
+    idx, codeTable = initCodeTable()
+
+    buffer = contents[0]
+    for c in contents[1:]:
+        temp = buffer + c
+        if temp in codeTable.values():
+            buffer = temp
+        else:
+            output.write(str(list(codeTable.values()).index(buffer)) + ' ')
+            codeTable[str(idx)] = temp
+            idx += 1
+            buffer = c
+
+    output.write(str(list(codeTable.values()).index(buffer)))
+
+def decompress(file):
+    codeTable = {}
+    idx, codeTable = initCodeTable()
+
+    listOfContents = compContents.split(' ')
+
+    prior = listOfContents[0]
+
+    s = codeTable[prior]
+    temp = ''
+    decoded = '' # Replaces print steps of algorithm
+
+    #stdout.write(s)
+    decoded += s
+
+
+    for current in listOfContents[1:]:
+        if not current in codeTable:
+            c = codeTable[prior][0]
+            temp = codeTable[prior] + c
+            codeTable[str(idx)] = temp
+            idx += 1
+            #stdout.write(temp)
+            decoded += temp
+        else:
+            c = codeTable[current][0]
+            temp = codeTable[prior] + c
+            codeTable[str(idx)] = temp
+            idx += 1
+            #stdout.write(codeTable[current])
+            decoded += codeTable[current]
+
+        prior = current
+
+    decomFile.write(decoded)
+
+    decomFile.close()
+    compressedSize = os.stat(file + '.lwz').st_size
+    decompSize = os.stat('Decompressed-' + file).st_size
+   
+    status = 'yes' if decoded == contents else 'no'
+    t.add_row([file, byteSize, compressedSize , decompSize, status, str(round(compressedSize/byteSize*100, 4)) + '%'])
+
+
+
+t.add_row(['Input Filename', '# bytes in input file', '# bytes in compressed file', '# bytes in output file', 'Matching Files?', 'Compression Efficiency'])     
+
+for file in argv[1:]:
+
+    byteSize = os.stat(file).st_size
+    inFile = open(file, 'r')
+    contents = inFile.read()
+
+    output = open(file + '.lwz', 'w')
+    decomFile = open('Decompressed-' + file, 'w')
+    compress()
+
+    inFile.close()
+    output.close()
+
+    compFile = open(file + '.lwz', 'r')
+    compContents = compFile.read()
+    compFile.close()
+
+    decompress(file)
+
+print(t.draw())
+PS C:\Users\Xavie\lempel-ziv> python main.py f1.txt f2.txt f3.txt f4.txt
+| Input       | # bytes in | # bytes in | # bytes in | Matching   | Compressio |
+| Filename    | input file | compressed | output     | Files?     | n          |
+|             |            | file       | file       |            | Efficiency |
++-------------+------------+------------+------------+------------+------------+
+| f1.txt      | 25         | 35         | 25         | yes        | 140.0%     |
++-------------+------------+------------+------------+------------+------------+
+| f2.txt      | 332        | 225        | 332        | yes        | 67.7711%   |
++-------------+------------+------------+------------+------------+------------+
+| f3.txt      | 517        | 509        | 517        | yes        | 98.4526%   |
++-------------+------------+------------+------------+------------+------------+
+| f4.txt      | 819        | 776        | 819        | yes        | 94.7497%   |
++-------------+------------+------------+------------+------------+------------+
+PS C:\Users\Xavie\lempel-ziv> python main.py f1.txt f2.txt f3.txt f4.txt
+| Input       | # bytes in | # bytes in | # bytes in | Matching   | Compressio |
+| Filename    | input file | compressed | output     | Files?     | n          |
+|             |            | file       | file       |            | Efficiency |
++-------------+------------+------------+------------+------------+------------+
+| f1.txt      | 25         | 35         | 25         | yes        | 140.0%     |
++-------------+------------+------------+------------+------------+------------+
+| f2.txt      | 332        | 225        | 332        | yes        | 67.7711%   |
++-------------+------------+------------+------------+------------+------------+
+| f3.txt      | 517        | 509        | 517        | yes        | 98.4526%   |
++-------------+------------+------------+------------+------------+------------+
+| f4.txt      | 819        | 776        | 819        | yes        | 94.7497%   |
++-------------+------------+------------+------------+------------+------------+
+PS C:\Users\Xavie\lempel-ziv> python main.py f2.txt f4.txt
++-------------+------------+------------+------------+------------+------------+
+| Input       | # bytes in | # bytes in | # bytes in | Matching   | Compressio |
+| Filename    | input file | compressed | output     | Files?     | n          |
+|             |            | file       | file       |            | Efficiency |
++-------------+------------+------------+------------+------------+------------+
+| f2.txt      | 332        | 225        | 332        | yes        | 67.7711%   |
++-------------+------------+------------+------------+------------+------------+
+| f4.txt      | 819        | 776        | 819        | yes        | 94.7497%   |
++-------------+------------+------------+------------+------------+------------+
